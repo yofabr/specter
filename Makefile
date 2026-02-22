@@ -9,11 +9,17 @@ else
 endif
 
 build:
-	go build -o $(EXECUTABLE) main.go
+	go build -o $(EXECUTABLE) ./cmd/specter
 
 install:
-	go build -o $(EXECUTABLE) main.go
+	go build -o $(EXECUTABLE) ./cmd/specter
 	sudo mv $(EXECUTABLE) /usr/local/bin
+
+test:
+	go test ./...
+
+fmt:
+	go fmt ./...
 
 clean:
 	rm -f $(EXECUTABLE)
