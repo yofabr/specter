@@ -1,2 +1,6 @@
 /specter
 /specter.exe
+result
+result-*
+*.drv
+
