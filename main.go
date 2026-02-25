@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
@@ -12,17 +13,20 @@ import (
 type step int
 
 const (
-	stepEnvironment step = iota
+	stepLoading step = iota
+	stepEnvironment
 	stepUsername
 	stepConfirm
 	stepDone
 )
 
 type model struct {
-	step         step
-	envSelected  int
-	environments []string
-	username     textinput.Model
+	step          step
+	loadingTick   int
+	loadingTitles []string
+	envSelected   int
+	environments  []string
+	username      textinput.Model
 }
 
 var (
@@ -47,7 +51,15 @@ func initialModel() model {
 	ti.Focus()
 
 	return model{
-		step:         stepEnvironment,
+		step:        stepLoading,
+		loadingTick: 0,
+		loadingTitles: []string{
+			"Initializing Specter...",
+			"Loading configuration...",
+			"Preparing environment...",
+			"Connecting to services...",
+			"Almost ready...",
+		},
 		envSelected:  0,
 		environments: []string{"Development", "Staging", "Production"},
 		username:     ti,
@@ -55,12 +67,29 @@ func initialModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(textinput.Blink, tick())
 }
+
+func tick() tea.Cmd {
+	return tea.Tick(800*time.Millisecond, func(t time.Time) tea.Msg {
+		return tickMsg(t)
+	})
+}
+
+type tickMsg time.Time
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
+
+	case tickMsg:
+		if m.step == stepLoading {
+			m.loadingTick++
+			if m.loadingTick >= len(m.loadingTitles) {
+				m.loadingTick = len(m.loadingTitles) - 1
+			}
+			return m, tick()
+		}
 
 	case tea.KeyMsg:
 
@@ -72,6 +101,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		// Step-specific logic
 		switch m.step {
+
+		case stepLoading:
+			if msg.String() == "enter" || msg.String() == " " {
+				m.step = stepEnvironment
+			}
 
 		case stepEnvironment:
 			switch msg.String() {
@@ -135,7 +169,14 @@ func (m model) View() string {
 
 	var body string
 
+	spinner := []string{"⠋", "⠙", "⠹", "⠸", "⠼", "⠴", "⠦", "⠧", "⠇", "⠏"}
+	spinnerChar := spinner[m.loadingTick%len(spinner)]
+
 	switch m.step {
+
+	case stepLoading:
+		body += spinnerChar + " " + m.loadingTitles[m.loadingTick] + "\n\n"
+		body += normalStyle.Render("Press Enter or wait...")
 
 	case stepEnvironment:
 		body += "Select Environment:\n\n"
