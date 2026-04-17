@@ -9,10 +9,10 @@ else
 endif
 
 build:
-	go build -o $(EXECUTABLE) ./cmd/specter
+	go build -o $(EXECUTABLE) ./cmd
 
 install:
-	go build -o $(EXECUTABLE) ./cmd/specter
+	go build -o $(EXECUTABLE) ./cmd
 	sudo mv $(EXECUTABLE) /usr/local/bin
 
 test:
