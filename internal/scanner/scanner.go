@@ -5,6 +5,7 @@ import (
 	"net"
 	"strconv"
 	"sync"
+	"time"
 )
 
 type Config struct {
@@ -12,6 +13,35 @@ type Config struct {
 	StartPort int
 	EndPort   int
 	Workers   int
+	Timeout   time.Duration
+}
+
+func (c Config) Validate() error {
+	if c.Target == "" {
+		return fmt.Errorf("target is required")
+	}
+	if ip := net.ParseIP(c.Target); ip == nil {
+		return fmt.Errorf("invalid target IP address: %s", c.Target)
+	}
+	if c.StartPort < 1 || c.StartPort > 65535 {
+		return fmt.Errorf("start port must be between 1 and 65535, got %d", c.StartPort)
+	}
+	if c.EndPort < 1 || c.EndPort > 65535 {
+		return fmt.Errorf("end port must be between 1 and 65535, got %d", c.EndPort)
+	}
+	if c.StartPort > c.EndPort {
+		return fmt.Errorf("start port (%d) cannot be greater than end port (%d)", c.StartPort, c.EndPort)
+	}
+	if c.Workers < 1 {
+		return fmt.Errorf("workers must be at least 1, got %d", c.Workers)
+	}
+	if c.Workers > 10000 {
+		return fmt.Errorf("workers cannot exceed 10000, got %d", c.Workers)
+	}
+	if c.Timeout < 0 {
+		return fmt.Errorf("timeout cannot be negative")
+	}
+	return nil
 }
 
 type Result struct {
@@ -24,6 +54,9 @@ type Scanner struct {
 }
 
 func NewScanner(cfg Config) *Scanner {
+	if cfg.Timeout == 0 {
+		cfg.Timeout = 2 * time.Second
+	}
 	return &Scanner{config: cfg}
 }
 
@@ -81,7 +114,7 @@ func (s *Scanner) worker(ports <-chan int, results chan<- Result, wg *sync.WaitG
 
 	for p := range ports {
 		address := s.config.Target + ":" + strconv.Itoa(p)
-		conn, err := net.Dial("tcp", address)
+		conn, err := net.DialTimeout("tcp", address, s.config.Timeout)
 		if err == nil {
 			results <- Result{Port: p, State: "open"}
 			conn.Close()
@@ -91,4 +124,8 @@ func (s *Scanner) worker(ports <-chan int, results chan<- Result, wg *sync.WaitG
 
 func PrintResult(r Result) {
 	fmt.Printf("Port %d: %s\n", r.Port, r.State)
+}
+
+func ParseTimeout(seconds int) time.Duration {
+	return time.Duration(seconds) * time.Second
 }
