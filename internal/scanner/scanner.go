@@ -42,16 +42,12 @@ func (s *Scanner) Scan() []Result {
 		go s.worker(ports, results, &wg)
 	}
 
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
+	wg.Wait()
+	close(results)
 
 	var openPorts []Result
 	for r := range results {
-		if r.State == "open" {
-			openPorts = append(openPorts, r)
-		}
+		openPorts = append(openPorts, r)
 	}
 
 	return openPorts
@@ -72,15 +68,11 @@ func (s *Scanner) ScanWithCallback(callback func(Result)) {
 		go s.worker(ports, results, &wg)
 	}
 
-	go func() {
-		wg.Wait()
-		close(results)
-	}()
+	wg.Wait()
+	close(results)
 
 	for r := range results {
-		if r.State == "open" {
-			callback(r)
-		}
+		callback(r)
 	}
 }
 
@@ -93,8 +85,6 @@ func (s *Scanner) worker(ports <-chan int, results chan<- Result, wg *sync.WaitG
 		if err == nil {
 			results <- Result{Port: p, State: "open"}
 			conn.Close()
-		} else {
-			results <- Result{Port: p, State: "closed"}
 		}
 	}
 }
